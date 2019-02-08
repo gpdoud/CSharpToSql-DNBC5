@@ -6,7 +6,11 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CSharpToSql {
-    class User {
+    public class User {
+
+        private static string CONN_STRING = @"server=DSI-WORKSTATION\SQLEXPRESS;"
+                           + "database=PrsDb;"
+                           + "trusted_connection=true;";
 
         public int Id { get; set; }
         public string Username { get; set; }
@@ -18,15 +22,55 @@ namespace CSharpToSql {
         public bool IsReviewer { get; set; }
         public bool IsAdmin { get; set; }
 
-        public static bool InsertUser(User user) {
-            var connStr = @"server=DSI-WORKSTATION\SQLEXPRESS;"
-                            + "database=PrsDb;"
-                            + "trusted_connection=true;";
-            // "uid=sa;pwd=sa;";  // instead of trusted_connection
-            var Connection = new SqlConnection(connStr);
+        private static SqlConnection CreateAndCheckConnection() {
+            var Connection = new SqlConnection(CONN_STRING);
             Connection.Open();
             if(Connection.State != System.Data.ConnectionState.Open) {
                 Console.WriteLine("Connection did not open.");
+                return null;
+            }
+            return Connection;
+        }
+
+        public static bool UpdateUser(User user) {
+            var Connection = CreateAndCheckConnection();
+            if(Connection == null) {
+                return false;
+            }
+            var isReviewer = user.IsReviewer ? 1 : 0;
+            var isAdmin = user.IsAdmin ? 1 : 0;
+            var sql = new StringBuilder("UPDATE Users Set ");
+            sql.Append($"Username = '{user.Username}',");
+            sql.Append($"Password = '{user.Password}',");
+            sql.Append($"Firstname = '{user.Firstname}',");
+            sql.Append($"Lastname = '{user.Lastname}',");
+            sql.Append($"Phone = '{user.Phone}',");
+            sql.Append($"Email = '{user.Email}',");
+            sql.AppendFormat("IsReviewer = {0}", (user.IsReviewer ? 1 : 0));
+            sql.AppendFormat("IsAdmin = {0}", (user.IsAdmin ? 1 : 0));
+            sql.Append($" Where Id = {user.Id}");
+            var Command = new SqlCommand(sql.ToString(), Connection);
+            var recsAffected = Command.ExecuteNonQuery();
+            Connection.Close();
+            return recsAffected == 1;
+
+        }
+
+        public static bool DeleteUser(int Id) {
+            var Connection = CreateAndCheckConnection();
+            if(Connection == null) {
+                return false;
+            }
+            var sql = $"DELETE From Users Where Id = {Id}";
+            var Command = new SqlCommand(sql, Connection);
+            var recsAffected = Command.ExecuteNonQuery();
+            Connection.Close();
+            return recsAffected == 1;
+        }
+
+        public static bool InsertUser(User user) {
+            var Connection = CreateAndCheckConnection();
+            if(Connection == null) {
                 return false;
             }
             var isReviewer = user.IsReviewer ? 1 : 0;
@@ -39,19 +83,7 @@ namespace CSharpToSql {
             return recsAffected == 1;
         }
 
-        public static User GetUserByPrimaryKey(int Id) {
-
-            var connStr = @"server=DSI-WORKSTATION\SQLEXPRESS;"
-                            + "database=PrsDb;"
-                            + "trusted_connection=true;";
-            // "uid=sa;pwd=sa;";  // instead of trusted_connection
-            var Connection = new SqlConnection(connStr);
-            Connection.Open();
-            if(Connection.State != System.Data.ConnectionState.Open) {
-                Console.WriteLine("Connection did not open.");
-                return null;
-            }
-            var sql = $"SELECT * From Users Where Id = {Id}";
+        private static SqlDataReader CreateSqlReaderAndCheck(string sql, SqlConnection Connection) {
             var Command = new SqlCommand(sql, Connection);
             var reader = Command.ExecuteReader();
             if(reader.HasRows == false) {
@@ -59,6 +91,16 @@ namespace CSharpToSql {
                 Connection.Close();
                 return null;
             }
+            return reader;
+        }
+
+        public static User GetUserByPrimaryKey(int Id) {
+            var Connection = CreateAndCheckConnection();
+            if(Connection == null) {
+                return null;
+            }
+            var sql = $"SELECT * From Users Where Id = {Id}";
+            var reader = CreateSqlReaderAndCheck(sql, Connection);
             reader.Read();
             var user = new User();
             user.Id = (int)reader["Id"];
@@ -78,26 +120,14 @@ namespace CSharpToSql {
         }
 
         public static User[] GetAllUsers() {
-
-            var connStr = @"server=DSI-WORKSTATION\SQLEXPRESS;"
-                            + "database=PrsDb;"
-                            + "trusted_connection=true;";
-            // "uid=sa;pwd=sa;";  // instead of trusted_connection
-            var Connection = new SqlConnection(connStr);
-            Connection.Open();
-            if(Connection.State != System.Data.ConnectionState.Open) {
-                Console.WriteLine("Connection did not open.");
+            var Connection = CreateAndCheckConnection();
+            if(Connection == null) {
                 return null;
             }
             var sql = "SELECT * From Users;";
-            var Command = new SqlCommand(sql, Connection);
-            var reader = Command.ExecuteReader();
-            if(reader.HasRows == false) {
-                Console.WriteLine("Result set has no rows.");
-                Connection.Close();
-                return null;
-            }
-            var users = new User[19];
+            var reader = CreateSqlReaderAndCheck(sql, Connection);
+
+            var users = new List<User>();
             var index = 0;
             while(reader.Read()) {
                 var user = new User();
@@ -111,12 +141,12 @@ namespace CSharpToSql {
                 user.IsReviewer = (bool)reader["IsReviewer"];
                 user.IsAdmin = (bool)reader["IsAdmin"];
 
-                users[index++] = user;
+                users.Add(user);
 
             }
-
+            reader.Close();
             Connection.Close();
-            return users;
+            return users.ToArray();
         }
 
         public User() { }
@@ -133,8 +163,8 @@ namespace CSharpToSql {
             IsReviewer = isReviewer;
             IsAdmin = isAdmin;
         }
-        public string ToPrint() {
-            return $"[ToPrint()] Id={Id}, Username={Username}, Name={Firstname} {Lastname}";
+        public override string ToString() {
+            return $"[ToString()] Id={Id}, Username={Username}, Password={Password}, Name={Firstname} {Lastname}";
         }
     }
 }

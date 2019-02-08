@@ -10,17 +10,36 @@ namespace CSharpToSql {
         // DSI-WORKSTATION\SQLEXPRESS
         static void Main(string[] args) {
             //var user = new User();
-            var user = new User(0, "xxx8", "xxx2", "UserX", "UserX", "5135552323", "info@user.com", true, true);
-            var returnCode = User.InsertUser(user);
+            var user = new User(0, "xxx9", "xxx2", "UserX", "UserX", "5135552323", "info@user.com", true, true);
+            //var returnCode = User.InsertUser(user);
+
             User[] users = User.GetAllUsers();
             foreach(var u in users) {
                 if(u == null) {
                     continue;
                 }
-                Console.WriteLine(u.ToPrint());
+                Console.WriteLine(u);
             }
-            User userpk = User.GetUserByPrimaryKey(1);
-            Console.WriteLine(userpk.ToPrint());
+            int ID = users[0].Id;
+            User userpk = User.GetUserByPrimaryKey(ID);
+            Console.WriteLine(userpk);
+
+            userpk.Password = "ABCXYZ";
+            var updateSuccess = User.UpdateUser(userpk);
+            if(updateSuccess) {
+                Console.WriteLine("Update successful");
+            } else {
+                Console.WriteLine("Update failed");
+            }
+
+            var deleteSuccess = User.DeleteUser(ID);
+            if(!deleteSuccess) {     // (deleteSuccess == false) {
+                Console.WriteLine("Delete failed");
+            }
+            deleteSuccess = User.DeleteUser(6);
+            if(!deleteSuccess) {     // (deleteSuccess == false) {
+                Console.WriteLine("Delete failed on non-existent Id");
+            }
 
             Console.ReadKey();
         }
