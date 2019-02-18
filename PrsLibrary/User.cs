@@ -133,6 +133,7 @@ namespace CSharpToSql {
                 var user = new User();
                 user.Id = (int)reader["Id"];
                 user.Username = (string)reader["Username"];
+                user.Password = (string)reader["Password"];
                 user.Firstname = (string)reader["Firstname"];
                 user.Lastname = (string)reader["Lastname"];
                 //user.Fullname = $"{Firstname} {Lastname}";
